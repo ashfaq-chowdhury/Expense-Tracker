@@ -1,0 +1,66 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Kotlin source files
+*.kt text diff=kotlin
+*.kts text diff=kotlin
+
+# Java source files
+*.java text diff=java
+
+# XML files
+*.xml text
+
+# Gradle files
+*.gradle text
+*.gradle.kts text
+gradle.properties text
+gradlew text eol=lf
+gradlew.bat text eol=crlf
+
+# Config files
+*.properties text
+*.toml text
+*.json text
+*.pro text
+
+# Documentation
+*.md text
+*.txt text
+
+# Images — treat as binary, do not diff/merge
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.bmp binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+
+# Compiled/binary files
+*.jar binary
+*.aar binary
+*.apk binary
+*.aab binary
+*.keystore binary
+*.jks binary
+*.so binary
+*.class binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+
+# Keep line endings consistent for shell scripts
+*.sh text eol=lf
+
+# Prevent Gradle wrapper jar from being treated as text
+gradle-wrapper.jar binary
+
+# Mark generated/build directories (optional documentation, git still needs .gitignore)
+# build/ export-ignore
