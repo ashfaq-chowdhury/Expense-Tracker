@@ -13,6 +13,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -29,6 +32,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ThemeMode.valueOf(prefs.getString("theme", ThemeMode.SYSTEM.name) ?: ThemeMode.SYSTEM.name)
     )
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
+    private val _selectedPeriod = MutableStateFlow(TimePeriod.ALL_TIME)
+    val selectedPeriod: StateFlow<TimePeriod> = _selectedPeriod.asStateFlow()
 
     init {
         viewModelScope.launch { loadTransactions() }
@@ -67,6 +73,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setThemeMode(mode: ThemeMode) {
         _themeMode.value = mode
         prefs.edit().putString("theme", mode.name).apply()
+    }
+
+    fun setTimePeriod(period: TimePeriod) {
+        _selectedPeriod.value = period
+    }
+
+    fun getFilteredTransactions(
+        transactions: List<Transaction>,
+        period: TimePeriod
+    ): List<Transaction> {
+        val today = LocalDate.now()
+        return when (period) {
+            TimePeriod.TODAY -> transactions.filter {
+                it.date == today.toString()
+            }
+            TimePeriod.THIS_WEEK -> {
+                val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                transactions.filter {
+                    val txDate = LocalDate.parse(it.date)
+                    !txDate.isBefore(weekStart) && !txDate.isAfter(today)
+                }
+            }
+            TimePeriod.THIS_MONTH -> transactions.filter {
+                it.date.startsWith(today.toString().substring(0, 7))
+            }
+            TimePeriod.ALL_TIME -> transactions
+        }
     }
 
     private suspend fun saveTransactions() = withContext(Dispatchers.IO) {
@@ -113,3 +146,5 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 }
 
 enum class ThemeMode { LIGHT, DARK, SYSTEM }
+
+enum class TimePeriod { TODAY, THIS_WEEK, THIS_MONTH, ALL_TIME }

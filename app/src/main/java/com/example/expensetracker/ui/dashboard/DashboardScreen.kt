@@ -24,6 +24,7 @@ import com.example.expensetracker.data.Category
 import com.example.expensetracker.data.MainViewModel
 import com.example.expensetracker.data.Transaction
 import com.example.expensetracker.data.TransactionType
+import com.example.expensetracker.data.TimePeriod
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -148,11 +149,13 @@ fun DashboardScreen(
 ) {
     val transactions by viewModel.transactions.collectAsState()
     val currencySymbol by viewModel.currencySymbol.collectAsState()
+    val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     val recentTransactions = transactions.take(5)
 
-    val totalBalance = transactions.sumOf { it.amount }
-    val monthlyIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-    val monthlyExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { abs(it.amount) }
+    val filteredTransactions = viewModel.getFilteredTransactions(transactions, selectedPeriod)
+    val totalBalance = filteredTransactions.sumOf { it.amount }
+    val filteredIncome = filteredTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+    val filteredExpense = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { abs(it.amount) }
 
     var showAddDialog by remember { mutableStateOf(false) }
 
@@ -199,6 +202,30 @@ fun DashboardScreen(
                 }
             }
             item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TimePeriod.entries.forEach { period ->
+                        FilterChip(
+                            selected = selectedPeriod == period,
+                            onClick = { viewModel.setTimePeriod(period) },
+                            label = {
+                                Text(
+                                    when (period) {
+                                        TimePeriod.TODAY -> "Today"
+                                        TimePeriod.THIS_WEEK -> "Week"
+                                        TimePeriod.THIS_MONTH -> "Month"
+                                        TimePeriod.ALL_TIME -> "All"
+                                    },
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+            item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -207,7 +234,12 @@ fun DashboardScreen(
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text(
-                            "Total Balance",
+                            when (selectedPeriod) {
+                                TimePeriod.TODAY -> "Today's Balance"
+                                TimePeriod.THIS_WEEK -> "This Week's Balance"
+                                TimePeriod.THIS_MONTH -> "This Month's Balance"
+                                TimePeriod.ALL_TIME -> "Total Balance"
+                            },
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                         )
@@ -227,7 +259,7 @@ fun DashboardScreen(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
-                                    "▲ $currencySymbol${"%.2f".format(monthlyIncome)}",
+                                    "▲ $currencySymbol${"%.2f".format(filteredIncome)}",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -238,7 +270,7 @@ fun DashboardScreen(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
-                                    "▼ $currencySymbol${"%.2f".format(monthlyExpense)}",
+                                    "▼ $currencySymbol${"%.2f".format(filteredExpense)}",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer
