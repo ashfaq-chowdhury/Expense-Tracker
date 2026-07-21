@@ -139,19 +139,18 @@ fun SettingsScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         SettingsItem(
             title = "Appearance",
-            subtitle = when (themeMode) {
-                ThemeMode.LIGHT -> "Light"
-                ThemeMode.DARK -> "Dark"
-                ThemeMode.SYSTEM -> "System Default"
-            },
-            onClick = { showThemeDialog = true }
+            subtitle = "System Default",
+            onClick = {} // Disabled since it's forced to system default
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         SettingsItem(title = "Storage", subtitle = "Local only — JSON file", onClick = {})
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         SettingsItem(title = "About", subtitle = "v1.0.0", onClick = {})
+
         // Bottom padding so content isn't hidden under the floating nav bar
         Spacer(Modifier.height(contentBottomPadding))
+
+
     }
 }
 

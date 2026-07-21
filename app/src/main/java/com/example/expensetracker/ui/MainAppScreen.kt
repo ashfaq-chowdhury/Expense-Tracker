@@ -7,6 +7,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Mic
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.expensetracker.data.MainViewModel
+import com.example.expensetracker.ui.analytics.AnalyticsScreen
 import com.example.expensetracker.ui.dashboard.DashboardScreen
 import com.example.expensetracker.ui.history.HistoryScreen
 import com.example.expensetracker.ui.settings.SettingsScreen
@@ -35,13 +37,14 @@ import kotlinx.coroutines.launch
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : Screen("dashboard", "Dashboard", Icons.Filled.Home)
     object History : Screen("history", "History", Icons.Filled.History)
+    object Analytics : Screen("analytics", "Analytics", Icons.Filled.Analytics)
     object Voice : Screen("voice", "Voice", Icons.Filled.Mic)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 }
 
 @Composable
 fun MainAppScreen(viewModel: MainViewModel = viewModel()) {
-    val items = listOf(Screen.Dashboard, Screen.History, Screen.Voice, Screen.Settings)
+    val items = listOf(Screen.Dashboard, Screen.History, Screen.Analytics, Screen.Voice, Screen.Settings)
     val pagerState = rememberPagerState(initialPage = 0) { items.size }
     val coroutineScope = rememberCoroutineScope()
 
@@ -73,6 +76,10 @@ fun MainAppScreen(viewModel: MainViewModel = viewModel()) {
                     contentBottomPadding = contentBottomPadding
                 )
                 Screen.History -> HistoryScreen(
+                    viewModel = viewModel,
+                    contentBottomPadding = contentBottomPadding
+                )
+                Screen.Analytics -> AnalyticsScreen(
                     viewModel = viewModel,
                     contentBottomPadding = contentBottomPadding
                 )

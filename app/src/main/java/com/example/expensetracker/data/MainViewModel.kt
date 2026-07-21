@@ -102,6 +102,70 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun getExpensesByCategory(
+        transactions: List<Transaction>,
+        period: TimePeriod
+    ): Map<Category, Double> {
+        return getFilteredTransactions(transactions, period)
+            .filter { it.type == TransactionType.EXPENSE }
+            .groupBy { it.cat }
+            .mapValues { (_, txList) -> txList.sumOf { kotlin.math.abs(it.amount) } }
+    }
+
+
+    fun getDailyExpenses(transactions: List<Transaction>): List<Pair<String, Double>> {
+        val today = LocalDate.now().toString()
+        return transactions
+            .filter { it.type == TransactionType.EXPENSE && it.date == today }
+            .groupBy { it.cat }
+            .map { (cat, txs) -> cat.label to txs.sumOf { kotlin.math.abs(it.amount) } }
+    }
+
+    fun getWeeklyExpenses(transactions: List<Transaction>): List<Pair<String, Double>> {
+        val today = LocalDate.now()
+        val weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val days = (0..6).map { weekStart.plusDays(it.toLong()) }
+
+        val expenseByDay = transactions
+            .filter { it.type == TransactionType.EXPENSE }
+            .filter {
+                val d = LocalDate.parse(it.date)
+                !d.isBefore(weekStart) && !d.isAfter(weekStart.plusDays(6))
+            }
+            .groupBy { it.date }
+            .mapValues { (_, txs) -> txs.sumOf { kotlin.math.abs(it.amount) } }
+
+        return days.map { day ->
+            val label = day.dayOfWeek.name.take(3)
+            val total = expenseByDay[day.toString()] ?: 0.0
+            label to total
+        }
+    }
+
+    fun getMonthlyExpenses(transactions: List<Transaction>): List<Pair<String, Double>> {
+        val today = LocalDate.now()
+        val monthStart = today.withDayOfMonth(1)
+        val weeksInMonth = mutableListOf<Pair<LocalDate, LocalDate>>()
+
+        var current = monthStart
+        while (!current.isAfter(today)) {
+            val weekEnd = minOf(current.plusDays(6), today)
+            weeksInMonth.add(current to weekEnd)
+            current = weekEnd.plusDays(1)
+        }
+
+        return weeksInMonth.mapIndexed { index, (start, end) ->
+            val total = transactions
+                .filter { it.type == TransactionType.EXPENSE }
+                .filter {
+                    val d = LocalDate.parse(it.date)
+                    !d.isBefore(start) && !d.isAfter(end)
+                }
+                .sumOf { kotlin.math.abs(it.amount) }
+            "W${index + 1}" to total
+        }
+    }
+
     private suspend fun saveTransactions() = withContext(Dispatchers.IO) {
         val array = JSONArray()
         _transactions.value.forEach { tx ->

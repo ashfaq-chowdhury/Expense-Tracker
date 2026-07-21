@@ -157,8 +157,10 @@ fun HistoryScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) {
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                grouped.forEach { (dateStr, txs) ->
-                    item {
+                val sortedGroups = grouped.entries.toList()
+
+                sortedGroups.forEach { (dateStr, txs) ->
+                    item(key = "header_$dateStr", contentType = "header") {
                         Text(
                             formatDateLabel(dateStr),
                             style = MaterialTheme.typography.labelLarge,
@@ -166,11 +168,15 @@ fun HistoryScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) {
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                         )
                     }
-                    items(txs, key = { it.id }) { tx ->
+                    items(
+                        items = txs,
+                        key = { it.id },
+                        contentType = { "transaction" }
+                    ) { tx ->
                         SwipeToDeleteRow(tx = tx, currencySymbol = currencySymbol, onDelete = { txToDelete = tx })
                     }
                 }
-                item { Spacer(Modifier.height(contentBottomPadding + 16.dp)) }
+                item(key = "bottom_spacer") { Spacer(Modifier.height(contentBottomPadding + 16.dp)) }
             }
         }
     }

@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.example.expensetracker.data.Category
 import com.example.expensetracker.data.MainViewModel
 import com.example.expensetracker.data.Transaction
@@ -42,66 +45,102 @@ fun AddTransactionDialog(
     var descError by remember { mutableStateOf(false) }
     var amountError by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Transaction") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // Description field — full keyboard
+    // Use Dialog (not AlertDialog) so we can attach imePadding() — this shifts
+    // the entire popup above the keyboard instead of letting it hide the Save button.
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()               // shifts dialog up when keyboard opens
+        ) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())  // scroll if content is tall
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)  // tight gaps
+            ) {
+                // ── Title ──
+                Text(
+                    "Add Transaction",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                // ── Description ──
                 OutlinedTextField(
                     value = desc,
                     onValueChange = { desc = it; descError = false },
                     label = { Text("Description") },
                     isError = descError,
-                    supportingText = { if (descError) Text("Required") },
+                    supportingText = { if (descError) Text("Required") else Text("") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     singleLine = true
                 )
-                // Amount field — decimal keyboard
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { value ->
-                        // Allow digits and a single decimal point
-                        val filtered = value.filter { it.isDigit() || it == '.' }
-                        val dotCount = filtered.count { it == '.' }
-                        if (dotCount <= 1) { amount = filtered; amountError = false }
-                    },
-                    label = { Text("Amount") },
-                    isError = amountError,
-                    supportingText = { if (amountError) Text("Enter a valid amount") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    prefix = { Text(if (isIncome) "+" else "-") }
-                )
-                // Income / Expense toggle
+
+                // ── Amount + Income/Expense toggle in ONE row ──
+                // The toggle chip sits to the right of the Amount field, saving a full row.
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Switch(
-                        checked = isIncome,
-                        onCheckedChange = {
-                            isIncome = it
-                            if (it) category = Category.INCOME
-                            else if (category == Category.INCOME) category = Category.FOOD
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = { value ->
+                            val filtered = value.filter { it.isDigit() || it == '.' }
+                            val dotCount = filtered.count { it == '.' }
+                            if (dotCount <= 1) { amount = filtered; amountError = false }
+                        },
+                        label = { Text("Amount") },
+                        isError = amountError,
+                        supportingText = { if (amountError) Text("Invalid") else Text("") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        prefix = { Text(if (isIncome) "+" else "-") }
+                    )
+
+                    // Income / Expense compact toggle chip
+                    // Placed beside Amount so no extra row is needed.
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(50.dp),
+                            color = if (isIncome) MaterialTheme.colorScheme.primaryContainer
+                                    else MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.clickable {
+                                isIncome = !isIncome
+                                if (isIncome) category = Category.INCOME
+                                else if (category == Category.INCOME) category = Category.FOOD
+                            }
+                        ) {
+                            Text(
+                                if (isIncome) "Income" else "Expense",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isIncome) MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
                         }
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        if (isIncome) "Income" else "Expense",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (isIncome) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.error
-                    )
+                    }
                 }
-                // Category chips
+
+                // ── Category label ──
                 Text(
                     "Category",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
+
+                // ── Category chips ──
                 val categoryRows = if (isIncome) {
                     listOf(listOf(Category.INCOME))
                 } else {
@@ -123,23 +162,31 @@ fun AddTransactionDialog(
                         }
                     }
                 }
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                val amt = amount.toDoubleOrNull()
-                descError = desc.isBlank()
-                amountError = amt == null || amt <= 0
-                if (!descError && !amountError) {
-                    onSave(desc.trim(), category, amt!!, isIncome)
+
+                // ── Action buttons ──
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = {
+                        val amt = amount.toDoubleOrNull()
+                        descError = desc.isBlank()
+                        amountError = amt == null || amt <= 0
+                        if (!descError && !amountError) {
+                            onSave(desc.trim(), category, amt!!, isIncome)
+                        }
+                    }) { Text("Save") }
                 }
-            }) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
         }
-    )
+    }
 }
+
 
 @Composable
 fun DashboardScreen(
@@ -192,13 +239,7 @@ fun DashboardScreen(
                         modifier = Modifier.size(40.dp).clip(CircleShape)
                             .background(MaterialTheme.colorScheme.primaryContainer),
                         contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "ET",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
+                    ) 
                 }
             }
             item {
