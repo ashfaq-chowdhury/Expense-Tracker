@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -20,7 +21,11 @@ import java.time.temporal.TemporalAdjusters
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val dataFile = File(application.filesDir, "transactions.json")
+    private val categoriesFile = File(application.filesDir, "categories.json")
     private val prefs = application.getSharedPreferences("expense_prefs", Context.MODE_PRIVATE)
+
+    private val _categories = MutableStateFlow(Category.DEFAULTS)
+    val categories: StateFlow<List<Category>> = _categories.asStateFlow()
 
     private val _transactions = MutableStateFlow<List<Transaction>>(emptyList())
     val transactions: StateFlow<List<Transaction>> = _transactions.asStateFlow()
@@ -37,8 +42,81 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedPeriod: StateFlow<TimePeriod> = _selectedPeriod.asStateFlow()
 
     init {
-        viewModelScope.launch { loadTransactions() }
+        viewModelScope.launch {
+            loadCategories()
+            loadTransactions()
+        }
     }
+
+    // ── Category CRUD ──────────────────────────────────────────
+
+    fun addCategory(label: String, iconName: String = "label") {
+        val newCat = Category(
+            id = UUID.randomUUID().toString(),
+            label = label.trim(),
+            iconName = iconName
+        )
+        _categories.value = _categories.value + newCat
+        viewModelScope.launch { saveCategories() }
+    }
+
+    fun updateCategory(id: String, newLabel: String, newIconName: String) {
+        _categories.value = _categories.value.map { cat ->
+            if (cat.id == id) cat.copy(label = newLabel.trim(), iconName = newIconName) else cat
+        }
+        // Also update all transactions that reference this category
+        _transactions.value = _transactions.value.map { tx ->
+            if (tx.cat.id == id) tx.copy(cat = tx.cat.copy(label = newLabel.trim(), iconName = newIconName))
+            else tx
+        }
+        viewModelScope.launch {
+            saveCategories()
+            saveTransactions()
+        }
+    }
+
+    fun deleteCategory(id: String) {
+        // Don't allow deleting the Income category
+        if (id == Category.INCOME.id) return
+        _categories.value = _categories.value.filter { it.id != id }
+        viewModelScope.launch { saveCategories() }
+    }
+
+    private suspend fun saveCategories() = withContext(Dispatchers.IO) {
+        val array = JSONArray()
+        _categories.value.forEach { cat ->
+            array.put(JSONObject().apply {
+                put("id", cat.id)
+                put("label", cat.label)
+                put("iconName", cat.iconName)
+            })
+        }
+        categoriesFile.writeText(array.toString())
+    }
+
+    private suspend fun loadCategories() = withContext(Dispatchers.IO) {
+        if (!categoriesFile.exists()) {
+            _categories.value = Category.DEFAULTS
+            return@withContext
+        }
+        try {
+            val array = JSONArray(categoriesFile.readText())
+            val list = mutableListOf<Category>()
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                list.add(Category(
+                    id = obj.getString("id"),
+                    label = obj.getString("label"),
+                    iconName = obj.optString("iconName", "label")
+                ))
+            }
+            _categories.value = list
+        } catch (e: Exception) {
+            _categories.value = Category.DEFAULTS
+        }
+    }
+
+    // ── Transaction CRUD ──────────────────────────────────────
 
     fun addTransaction(desc: String, category: Category, amount: Double, date: String, time: String) {
         val type = if (amount >= 0) TransactionType.INCOME else TransactionType.EXPENSE
@@ -172,7 +250,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             array.put(JSONObject().apply {
                 put("id", tx.id)
                 put("desc", tx.desc)
-                put("cat", tx.cat.name)
+                put("catId", tx.cat.id)
+                put("catLabel", tx.cat.label)
+                put("catIcon", tx.cat.iconName)
                 put("amount", tx.amount)
                 put("date", tx.date)
                 put("time", tx.time)
@@ -190,12 +270,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val array = JSONArray(dataFile.readText())
             val list = mutableListOf<Transaction>()
+            val cats = _categories.value
             for (i in 0 until array.length()) {
                 val obj = array.getJSONObject(i)
+
+                // New format: catId/catLabel/catIcon
+                // Old format: cat (enum name like "FOOD")
+                val category = if (obj.has("catId")) {
+                    val catId = obj.getString("catId")
+                    cats.find { it.id == catId }
+                        ?: Category(catId, obj.optString("catLabel", catId), obj.optString("catIcon", "label"))
+                } else {
+                    // Backward compat: old enum name → lowercase id lookup
+                    val enumName = obj.getString("cat")
+                    cats.find { it.id == enumName.lowercase() }
+                        ?: Category(enumName.lowercase(), enumName.lowercase().replaceFirstChar { it.uppercase() }, "label")
+                }
+
                 list.add(Transaction(
                     id = obj.getInt("id"),
                     desc = obj.getString("desc"),
-                    cat = Category.valueOf(obj.getString("cat")),
+                    cat = category,
                     amount = obj.getDouble("amount"),
                     date = obj.getString("date"),
                     time = obj.getString("time"),

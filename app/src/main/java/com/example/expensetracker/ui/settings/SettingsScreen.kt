@@ -20,6 +20,7 @@ fun SettingsScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) 
 
     var showCurrencyDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showCategoryManagement by remember { mutableStateOf(false) }
 
     val currencies = listOf(
         "$" to "USD — US Dollar",
@@ -116,6 +117,15 @@ fun SettingsScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) 
         )
     }
 
+    // Show category management screen if toggled
+    if (showCategoryManagement) {
+        CategoryManagementScreen(
+            viewModel = viewModel,
+            onBack = { showCategoryManagement = false }
+        )
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -135,6 +145,12 @@ fun SettingsScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) 
             title = "Currency",
             subtitle = "$currencySymbol  — tap to change",
             onClick = { showCurrencyDialog = true }
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+        SettingsItem(
+            title = "Manage Categories",
+            subtitle = "Add, edit or delete categories",
+            onClick = { showCategoryManagement = true }
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
         SettingsItem(

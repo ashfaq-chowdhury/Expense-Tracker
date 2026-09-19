@@ -45,7 +45,7 @@ fun HistoryScreen(viewModel: MainViewModel, contentBottomPadding: Dp = 120.dp) {
     var showClearDialog by remember { mutableStateOf(false) }
     var txToDelete by remember { mutableStateOf<Transaction?>(null) }
 
-    val categories = Category.values().toList()
+    val categories by viewModel.categories.collectAsState()
 
     val filteredTransactions = transactions.filter { tx ->
         val matchesSearch = searchQuery.isEmpty() ||

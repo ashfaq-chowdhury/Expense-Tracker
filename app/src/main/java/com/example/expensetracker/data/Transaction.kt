@@ -14,12 +14,21 @@ enum class TransactionType {
     INCOME, EXPENSE
 }
 
-enum class Category(val label: String, val iconName: String) {
-    FOOD("Food", "restaurant"),
-    TRANSPORT("Transport", "commute"),
-    SHOPPING("Shopping", "shopping_bag"),
-    UTILITIES("Utilities", "bolt"),
-    ENTERTAINMENT("Entertainment", "movie"),
-    RENT("Rent", "home_work"),
-    INCOME("Income", "payments")
+data class Category(
+    val id: String,
+    val label: String,
+    val iconName: String
+) {
+    companion object {
+        val DEFAULTS = listOf(
+            Category("food", "Food", "restaurant"),
+            Category("transport", "Transport", "commute"),
+            Category("shopping", "Shopping", "shopping_bag"),
+            Category("utilities", "Utilities", "bolt"),
+            Category("entertainment", "Entertainment", "movie"),
+            Category("rent", "Rent", "home_work"),
+            Category("income", "Income", "payments")
+        )
+        val INCOME = DEFAULTS.last()
+    }
 }

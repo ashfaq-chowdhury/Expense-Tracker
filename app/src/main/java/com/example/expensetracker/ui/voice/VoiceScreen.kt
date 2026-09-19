@@ -31,27 +31,28 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-fun guessCategory(text: String): Category {
+fun guessCategory(text: String, categories: List<Category>): Category {
+    fun findById(id: String) = categories.find { it.id == id }
     val lower = text.lowercase()
     return when {
         lower.contains("food") || lower.contains("lunch") || lower.contains("dinner") ||
         lower.contains("breakfast") || lower.contains("coffee") || lower.contains("restaurant") ||
         lower.contains("groceries") || lower.contains("pizza") || lower.contains("burger") ||
-        lower.contains("chipotle") || lower.contains("starbucks") || lower.contains("eat") -> Category.FOOD
+        lower.contains("chipotle") || lower.contains("starbucks") || lower.contains("eat") -> findById("food")
         lower.contains("uber") || lower.contains("lyft") || lower.contains("taxi") ||
         lower.contains("bus") || lower.contains("train") || lower.contains("transport") ||
-        lower.contains("gas") || lower.contains("fuel") || lower.contains("metro") -> Category.TRANSPORT
+        lower.contains("gas") || lower.contains("fuel") || lower.contains("metro") -> findById("transport")
         lower.contains("netflix") || lower.contains("movie") || lower.contains("spotify") ||
-        lower.contains("entertainment") || lower.contains("game") || lower.contains("cinema") -> Category.ENTERTAINMENT
+        lower.contains("entertainment") || lower.contains("game") || lower.contains("cinema") -> findById("entertainment")
         lower.contains("amazon") || lower.contains("shop") || lower.contains("bought") ||
-        lower.contains("store") || lower.contains("mall") || lower.contains("clothes") -> Category.SHOPPING
-        lower.contains("rent") || lower.contains("mortgage") || lower.contains("lease") -> Category.RENT
+        lower.contains("store") || lower.contains("mall") || lower.contains("clothes") -> findById("shopping")
+        lower.contains("rent") || lower.contains("mortgage") || lower.contains("lease") -> findById("rent")
         lower.contains("electric") || lower.contains("water") || lower.contains("internet") ||
-        lower.contains("bill") || lower.contains("utilities") || lower.contains("phone") -> Category.UTILITIES
+        lower.contains("bill") || lower.contains("utilities") || lower.contains("phone") -> findById("utilities")
         lower.contains("salary") || lower.contains("income") || lower.contains("freelance") ||
-        lower.contains("received") || lower.contains("payment") || lower.contains("earned") -> Category.INCOME
-        else -> Category.FOOD
-    }
+        lower.contains("received") || lower.contains("payment") || lower.contains("earned") -> findById("income")
+        else -> findById("food")
+    } ?: categories.firstOrNull() ?: Category.DEFAULTS.first()
 }
 
 @Composable
@@ -66,7 +67,7 @@ fun VoiceScreen(viewModel: MainViewModel = viewModel(), contentBottomPadding: Dp
     var showEditDialog by remember { mutableStateOf(false) }
     var pendingDesc by remember { mutableStateOf("") }
     var pendingAmount by remember { mutableStateOf("") }
-    var pendingCategory by remember { mutableStateOf(Category.FOOD) }
+    var pendingCategory by remember { mutableStateOf(Category.DEFAULTS.first()) }
 
     var hasMicPermission by remember {
         mutableStateOf(
@@ -84,7 +85,7 @@ fun VoiceScreen(viewModel: MainViewModel = viewModel(), contentBottomPadding: Dp
     fun processHeard(text: String) {
         val amountRegex = Regex("""[\$£€]?\s*(\d+(?:\.\d{1,2})?)""")
         val amount = amountRegex.find(text)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-        val category = guessCategory(text)
+        val category = guessCategory(text, viewModel.categories.value)
         pendingDesc = text.replaceFirstChar { it.uppercase() }
         pendingAmount = if (amount > 0) amount.toString() else ""
         pendingCategory = category
@@ -126,7 +127,7 @@ fun VoiceScreen(viewModel: MainViewModel = viewModel(), contentBottomPadding: Dp
         var editDesc by remember(pendingDesc) { mutableStateOf(pendingDesc) }
         var editAmount by remember(pendingAmount) { mutableStateOf(pendingAmount) }
         var editCategory by remember(pendingCategory) { mutableStateOf(pendingCategory) }
-        var isIncome by remember { mutableStateOf(pendingCategory == Category.INCOME) }
+        var isIncome by remember { mutableStateOf(pendingCategory.id == Category.INCOME.id) }
 
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
@@ -148,18 +149,15 @@ fun VoiceScreen(viewModel: MainViewModel = viewModel(), contentBottomPadding: Dp
                     Text("Category", style = MaterialTheme.typography.labelMedium)
                     // Category chips
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf(
-                            listOf(Category.FOOD, Category.TRANSPORT, Category.SHOPPING),
-                            listOf(Category.ENTERTAINMENT, Category.RENT, Category.UTILITIES),
-                            listOf(Category.INCOME)
-                        ).forEach { row ->
+                        val cats = viewModel.categories.collectAsState().value
+                        cats.chunked(3).forEach { row ->
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 row.forEach { cat ->
                                     FilterChip(
                                         selected = editCategory == cat,
                                         onClick = {
                                             editCategory = cat
-                                            isIncome = cat == Category.INCOME
+                                            isIncome = cat.id == Category.INCOME.id
                                         },
                                         label = { Text(cat.label, style = MaterialTheme.typography.labelSmall) }
                                     )
