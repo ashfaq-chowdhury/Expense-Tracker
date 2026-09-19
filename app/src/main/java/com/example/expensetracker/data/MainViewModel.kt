@@ -129,7 +129,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             time = time,
             type = type
         )
-        _transactions.value = listOf(newTx) + _transactions.value
+        _transactions.value = (listOf(newTx) + _transactions.value)
+            .sortedWith(compareByDescending<Transaction> { it.date }.thenByDescending { it.time })
         viewModelScope.launch { saveTransactions() }
     }
 
